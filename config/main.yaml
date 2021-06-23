@@ -1,0 +1,10 @@
+defaults:
+  - agent: dqn
+
+env: CartPole-v0
+
+num_episodes: 1000
+
+device: cuda
+
+plot: False

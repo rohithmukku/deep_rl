@@ -1,0 +1,9 @@
+_target_: agent.dqn.DQNAgent
+obs_dim: ???
+act_dim: ???
+buffer_size: 10000
+batch_size: 32
+epsilon: 0.1
+gamma: 0.95
+alpha: 0.001
+target_update: 10

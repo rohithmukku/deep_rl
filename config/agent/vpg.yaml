@@ -1,0 +1,5 @@
+_target_: agent.vpg.VPGAgent
+obs_dim: ???
+act_dim: ???
+gamma: 0.95
+alpha: 0.001
