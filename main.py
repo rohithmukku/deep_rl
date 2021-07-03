@@ -8,6 +8,8 @@ from agent.dqn import DQNAgent
 
 from omegaconf import DictConfig, OmegaConf
 
+import gym
+
 class Environment(object):
     def __init__(self, cfg) -> None:
         super().__init__()
@@ -36,29 +38,28 @@ class Environment(object):
         for episode in range(self.num_episodes):
             state = self.env.reset()
             total_rewards = 0
-            # if episode % 10 == 0:
-            #     print(episode)
             for t in count():
+                self.env.render()
                 action = self.agent.act(state)
                 next_state, reward, done, info = self.env.step(action)
                 if done:
                     next_state = None
                 self.agent.observe(state, action, next_state, reward)
+                self.agent.update_batch(done)
                 self.agent.train(done)
                 self.agent.update(done)
-                state = next_state
-
                 total_rewards += reward
-
+                state = next_state
                 if done:
                     self.episode_durations.append(t + 1)
-                    if self.plot:
-                        plot_durations(self.episode_durations)
+                    average_rewards = total_rewards / (t + 1)
                     break
 
-            average_rewards = total_rewards / (t+1)
             self.average_rewards_list.append(average_rewards)
             self.cumulative_rewards_list.append(total_rewards)
+            if self.plot:
+                # plot_durations(self.episode_durations)
+                plot_durations(self.cumulative_rewards_list)
     
     def eval(self):
         for i_episode in range(20):
@@ -73,7 +74,6 @@ class Environment(object):
                     break
     
     def close(self):
-        self.env.render()
         self.env.close()
         plt.ioff()
         plt.show()

@@ -6,10 +6,11 @@ import random
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
 class ReplayBuffer(object):
-    def __init__(self, capacity) -> None:
+    def __init__(self, min_capacity, max_capacity) -> None:
         super().__init__()
 
-        self.memory = deque([], maxlen=capacity)
+        self.min_capacity = min_capacity
+        self.memory = deque([], maxlen=max_capacity)
     
     def __len__(self):
         return len(self.memory)

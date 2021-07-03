@@ -1,5 +1,6 @@
 _target_: agent.vpg.VPGAgent
 obs_dim: ???
 act_dim: ???
-gamma: 0.95
-alpha: 0.001
+gamma: 0.99
+alpha: 0.01
+batch_update: 10
