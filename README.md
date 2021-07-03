@@ -26,6 +26,43 @@ For MuJoCo installation, refer to these links:
 
 ## Usage
 
+```shell
+$ python main.py --help
+
+main is powered by Hydra.
+
+== Configuration groups ==
+Compose your configuration from those groups (group=option)
+
+agent: dqn, vpg
+
+
+== Config ==
+Override anything in the config (foo.bar=value)
+
+agent:
+  _target_: agent.dqn.DQNAgent
+  obs_dim: ???
+  act_dim: ???
+  buffer_size: 10000
+  min_size: 100
+  batch_size: 32
+  epsilon: 1
+  epsilon_decay: 0.95
+  min_epsilon: 0.01
+  gamma: 0.99
+  alpha: 0.001
+  target_update: 100
+env: CartPole-v0
+num_episodes: 1000
+device: cuda
+plot: false
+
+
+Powered by Hydra (https://hydra.cc)
+Use --hydra-help to view Hydra specific help
+```
+
 ## References
 
 ### Blogs/Tutorials
