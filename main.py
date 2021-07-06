@@ -39,7 +39,7 @@ class Environment(object):
             state = self.env.reset()
             total_rewards = 0
             for t in count():
-                self.env.render()
+                # self.env.render()
                 action = self.agent.act(state)
                 next_state, reward, done, info = self.env.step(action)
                 if done:

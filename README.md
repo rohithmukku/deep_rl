@@ -6,11 +6,12 @@ This repository contains implementations of some popular DRL methods.
 
 - [x] Deep Q-Networks (DQN)
 - [x] Vanilla Policy Gradient (VPG)
+- [x] Vanilla Actor Critic (VAC)
+- [x] Advantage Actor Critic (A2C)
 - [ ] Natural Policy Gradient (NPG)
 - [ ] Deep Deterministic Policy Gradient (DDPG)
 - [ ] Twin Delayed DDPG (TD3)
-- [ ] Actor Critic (A2C)
-- [ ] Asynchronous Actor Critic (A3C)
+- [ ] Asynchronous Advantage Actor Critic (A3C)
 
 ## Environments
 

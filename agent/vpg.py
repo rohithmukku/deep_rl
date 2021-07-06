@@ -1,9 +1,6 @@
-from torch.functional import norm
-from utils.buffer import ReplayBuffer, Transition
 from agent import Agent
 import numpy as np
 import torch
-from torch.distributions import Categorical
 import torch.nn.functional as F
 import torch.optim as optim
 

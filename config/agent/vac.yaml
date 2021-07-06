@@ -1,0 +1,7 @@
+_target_: agent.vac.VACAgent
+obs_dim: ???
+act_dim: ???
+gamma: 0.99
+actor_lr: 0.01
+critic_lr: 0.001
+batch_update: 1

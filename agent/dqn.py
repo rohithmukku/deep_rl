@@ -70,8 +70,6 @@ class DQNAgent(Agent):
 
         loss = F.mse_loss(state_action_values.squeeze(1), expected_state_action_values)
 
-        print(loss)
-
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
@@ -79,14 +77,12 @@ class DQNAgent(Agent):
 
     def observe(self, state, action, next_state, reward):
         if not isinstance(next_state, np.ndarray):
-            print(next_state)
             reward = -1
         self.replay_buffer.add(state, action, next_state, reward)
 
     def act(self, state):
         self.epsilon = self.epsilon * self.epsilon_decay
         self.epsilon = max(self.epsilon, self.min_epsilon)
-        print(self.epsilon)
         action = None
         if random.random() < self.epsilon:
             # Random action (Exploration)
