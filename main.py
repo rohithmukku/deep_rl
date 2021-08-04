@@ -2,13 +2,14 @@ import numpy as np
 import hydra
 from itertools import count
 import matplotlib.pyplot as plt
+from numpy.lib.arraysetops import isin
+from tqdm import tqdm
+from torch.utils.tensorboard import SummaryWriter, writer
 
 from utils.utils import seed_torch, make_env, plot_durations
-from agent.dqn import DQNAgent
+from utils.logger import Logger
 
-from omegaconf import DictConfig, OmegaConf
-
-import gym
+writer = SummaryWriter()
 
 class Environment(object):
     def __init__(self, cfg) -> None:
@@ -19,6 +20,7 @@ class Environment(object):
         self.num_episodes = cfg.num_episodes
         self.average_rewards_list = []
         self.cumulative_rewards_list = []
+        self.loss_list = []
         self.episode_durations = []
         self.plot = cfg.plot
 
@@ -26,25 +28,30 @@ class Environment(object):
             plt.ion()
 
         self.env, self.obs_dim, self.act_dim = make_env(cfg.env)
-
-        self.seed = 100
+        self.logger = Logger()
+        self.seed = cfg.seed
         np.random.seed(self.seed)
         seed_torch(self.seed)
         self.env.seed(self.seed)
 
-        self.agent = hydra.utils.instantiate(cfg.agent, device=cfg.device, obs_dim=self.obs_dim, act_dim=self.act_dim)
+        self.agent = hydra.utils.instantiate(cfg.agent, device=cfg.device,
+                                             obs_dim=self.obs_dim, act_dim=self.act_dim,
+                                             action_space=self.env.action_space,
+                                             writer=writer)
     
     def run(self):
-        for episode in range(self.num_episodes):
+        steps = 0
+        for episode in tqdm(range(self.num_episodes)):
             state = self.env.reset()
             total_rewards = 0
+            loss = 0
             for t in count():
-                # self.env.render()
+                steps += 1
                 action = self.agent.act(state)
+                if not isinstance(action, np.ndarray):
+                    action = self.env.action_space.sample()
                 next_state, reward, done, info = self.env.step(action)
-                if done:
-                    next_state = None
-                self.agent.observe(state, action, next_state, reward)
+                self.agent.observe(state, action, next_state, reward, int(done))
                 self.agent.update_batch(done)
                 self.agent.train(done)
                 self.agent.update(done)
@@ -53,12 +60,21 @@ class Environment(object):
                 if done:
                     self.episode_durations.append(t + 1)
                     average_rewards = total_rewards / (t + 1)
+                    average_loss = self.agent.get_loss()
+                    episode_len = t + 1
+                    episode_num = episode + 1
+                    results = {'Episode Number': episode_num,
+                               'Total Rewards': total_rewards,
+                               'Average Loss': average_loss,
+                               'Episode Length': episode_len}
+                    self.logger.write(results)
+                    writer.add_scalar("Rewards", total_rewards, global_step=steps)
                     break
 
             self.average_rewards_list.append(average_rewards)
             self.cumulative_rewards_list.append(total_rewards)
+            self.loss_list.append(average_loss)
             if self.plot:
-                # plot_durations(self.episode_durations)
                 plot_durations(self.cumulative_rewards_list)
     
     def eval(self):
@@ -82,10 +98,6 @@ class Environment(object):
 def main(cfg):
     environment = Environment(cfg)
     environment.run()
-    for i, reward in enumerate(environment.average_rewards_list):
-        print("Episode: " + str(i) + "\t Total Reward: " + str(environment.cumulative_rewards_list[i]) + "\t Average Reward: " + str(reward))
-    
-    # # environment.eval()
     environment.close()
 
 if __name__ == "__main__":

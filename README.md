@@ -1,6 +1,6 @@
 # Deep Reinforcement Learning Methods
 
-This repository contains implementations of some popular DRL methods.
+This repository contains implementations of some of the popular DRL methods.
 
 ## Methods
 
@@ -9,15 +9,42 @@ This repository contains implementations of some popular DRL methods.
 - [x] Vanilla Actor Critic (VAC)
 - [x] Advantage Actor Critic (A2C)
 - [ ] Natural Policy Gradient (NPG)
-- [ ] Deep Deterministic Policy Gradient (DDPG)
+- [x] Proximal Policy Optimization (PPO)
+- [x] Deep Deterministic Policy Gradient (DDPG)
 - [ ] Twin Delayed DDPG (TD3)
 - [ ] Asynchronous Advantage Actor Critic (A3C)
+- [ ] Soft Actor Critic (SAC)
+
+  > **NOTE:** PPO, DDPG aren't working properly, need to be improved.
 
 ## Environments
 
-- [x] Classic OpenAI Gym
-- [x] MuJoCo
-- [ ] Robotics
+- Classic OpenAI Gym
+
+  | Environment              | Observation Space | Action Space |
+  | ------------------------ | ----------------- | ------------ |
+  | CartPole-v1              | Box, 4            | Discrete, 2  |
+  | Pendulum-v0              | Box, 3            | Box, 1       |
+  | MountainCar-v0           | Box, 2            | Discrete, 3  |
+  | MountainCarContinuous-v0 | Box, 2            | Box, 1       |
+  | Acrobot-v1               | Box, 6            | Discrete, 3  |
+
+- MuJoCo
+
+  | Environment               | Observation Space | Action Space |
+  | ------------------------- | ----------------- | ------------ |
+  | Ant-v2                    | Box, 111          | Box, 8       |
+  | HalfCheetah-v2            | Box, 17           | Box, 6       |
+  | Hopper-v2                 | Box, 11           | Box, 3       |
+  | Humanoid-v2               | Box, 376          | Box, 17      |
+  | HumanoidStandup-v2        | Box, 376          | Box, 17      |
+  | InvertedDoublePendulum-v2 | Box, 11           | Box, 1       |
+  | InvertedPendulum-v2       | Box, 4            | Box, 1       |
+  | Reacher-v2                | Box, 11           | Box, 2       |
+  | Swimmer-v2                | Box, 8            | Box, 2       |
+  | Walker2d-v2               | Box, 17           | Box, 6       |
+
+- Robotics (Not implemented)
 
 ### Installation
 
@@ -76,7 +103,18 @@ Use --hydra-help to view Hydra specific help
 ### Papers
 
 - [DQN](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf)
+- [A2C](https://arxiv.org/pdf/1602.01783.pdf)
+- [PPO](https://arxiv.org/pdf/1707.06347.pdf)
+- [DDPG](https://arxiv.org/pdf/1509.02971.pdf)
 
 ### Code
 
 - https://github.com/dongminlee94/deep_rl
+- https://github.com/openai/spinningup/tree/master/spinup/algos/pytorch
+- https://github.com/nikhilbarhate99/PPO-PyTorch
+
+## Todo
+
+- Improve PPO, DDPG
+- Unit testing
+- Better logs, plots

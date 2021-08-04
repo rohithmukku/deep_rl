@@ -10,7 +10,9 @@ class VPGAgent(Agent):
 
     """VPG/REINFORCE Agent Implementation"""
 
-    def __init__(self, device, obs_dim, act_dim, gamma, alpha, batch_update) -> None:
+    def __init__(self, device, obs_dim, act_dim,
+                 gamma, alpha, batch_update,
+                 action_space, writer) -> None:
         super().__init__()
 
         self.device = device
@@ -22,8 +24,12 @@ class VPGAgent(Agent):
         self.state_batch = []
         self.action_batch = []
         self.returns = []
+        self.loss_list = []
         self.batch_num = 0
         self.batch_update = batch_update
+        self.action_space = action_space
+        self.writer = writer
+        self.steps = 0
 
         self.obs_dim = obs_dim
         self.act_dim = act_dim
@@ -47,7 +53,6 @@ class VPGAgent(Agent):
 
     def train(self, done):
         if not done or self.batch_num != self.batch_update:
-            # Episode not completed
             return
         
         states = torch.tensor(self.state_batch, dtype=torch.float32).to(self.device)
@@ -59,13 +64,16 @@ class VPGAgent(Agent):
 
         log_probs_action = torch.flatten(torch.gather(log_probs, 1, actions.unsqueeze(1)))
         loss = - torch.mean(log_probs_action * cumulative_returns)
+        self.loss_list.append(loss.item())
+        self.writer.add_scalar("Loss", loss.item(), global_step=self.steps)
 
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-    def observe(self, state, action, next_state, reward):
+    def observe(self, state, action, next_state, reward, done):
+        self.steps += 1
         # Store rewards
         self.state_list.append(state)
         self.action_list.append(action)
@@ -77,12 +85,12 @@ class VPGAgent(Agent):
         return action
 
     def update(self, done):
-        if not done or self.batch_num != self.batch_update:
-            return
-        self.state_batch.clear()
-        self.action_batch.clear()
-        self.returns.clear()
-        self.batch_num = 0
+        if done and self.batch_num == self.batch_update:
+            self.state_batch.clear()
+            self.action_batch.clear()
+            self.returns.clear()
+            self.batch_num = 0
+        return
     
     def update_batch(self, done):
         if not done:
@@ -94,3 +102,9 @@ class VPGAgent(Agent):
         self.action_list.clear()
         self.reward_list.clear()
         self.batch_num += 1
+    
+    def get_loss(self):
+        loss_np = np.array(self.loss_list, dtype=np.float32)
+        if loss_np.size == 0:
+            return 0
+        return np.mean(loss_np)

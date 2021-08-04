@@ -14,7 +14,7 @@ class DQNAgent(Agent):
 
     def __init__(self, device, obs_dim, act_dim, buffer_size, min_size,
                     batch_size, epsilon, epsilon_decay, min_epsilon, gamma,
-                    alpha, target_update) -> None:
+                    alpha, target_update, action_space, writer) -> None:
         super().__init__()
 
         self.device = device
@@ -28,6 +28,10 @@ class DQNAgent(Agent):
         self.alpha = alpha
         self.target_update = target_update
         self.update_count = 0
+        self.loss_list = []
+        self.action_space = action_space
+        self.writer = writer
+        self.steps = 0
 
         self.obs_dim = obs_dim
         self.act_dim = act_dim
@@ -67,18 +71,22 @@ class DQNAgent(Agent):
         next_state_values[non_final_mask] = self.qf_target(non_final_next_states).max(1)[0]
         # Compute the expected Q values
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
+        expected_state_action_values = expected_state_action_values.detach()
 
         loss = F.mse_loss(state_action_values.squeeze(1), expected_state_action_values)
+        self.loss_list.append(loss.item())
+        self.writer.add_scalar("Loss/Critic", loss.item(), global_step=self.steps)
 
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-    def observe(self, state, action, next_state, reward):
+    def observe(self, state, action, next_state, reward, done):
+        self.steps += 1
         if not isinstance(next_state, np.ndarray):
             reward = -1
-        self.replay_buffer.add(state, action, next_state, reward)
+        self.replay_buffer.add(state, action, next_state, reward, done)
 
     def act(self, state):
         self.epsilon = self.epsilon * self.epsilon_decay
@@ -94,10 +102,14 @@ class DQNAgent(Agent):
             action = action.detach().cpu().item()
         return action
 
-    def update(self, _):
-        self.update_count += 1
-        if self.update_count % self.target_update == 0:
-            self.qf_target.load_state_dict(self.qf_behaviour.state_dict())
+    def update(self, done):
+        return
     
     def update_batch(self, done):
         return
+    
+    def get_loss(self):
+        loss_np = np.array(self.loss_list, dtype=np.float32)
+        if loss_np.size == 0:
+            return 0
+        return np.mean(loss_np)

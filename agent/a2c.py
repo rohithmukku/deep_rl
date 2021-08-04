@@ -12,7 +12,9 @@ class A2CAgent(Agent):
 
     """Advantage Actor Critic Agent Implementation"""
 
-    def __init__(self, device, obs_dim, act_dim, gamma, actor_lr, critic_lr, batch_update) -> None:
+    def __init__(self, device, obs_dim, act_dim,
+                 gamma, actor_lr, critic_lr,
+                 batch_update, action_space, writer) -> None:
         super().__init__()
 
         self.device = device
@@ -27,8 +29,12 @@ class A2CAgent(Agent):
         self.action_batch = []
         self.returns = []
         self.next_state_batch = []
+        self.loss_list = []
         self.batch_num = 0
         self.batch_update = batch_update
+        self.action_space = action_space
+        self.writer = writer
+        self.steps = 0
 
         self.obs_dim = obs_dim
         self.act_dim = act_dim
@@ -80,6 +86,10 @@ class A2CAgent(Agent):
         log_probs_action = torch.flatten(torch.gather(log_probs, 1, actions.unsqueeze(1)))
         actor_loss = - torch.mean(log_probs_action * advantage)
 
+        self.loss_list.append(actor_loss.item() + critic_loss.item())
+        self.writer.add_scalar("Loss/Actor", actor_loss.item(), global_step=self.steps)
+        self.writer.add_scalar("Loss/Critic", critic_loss.item(), global_step=self.steps)
+
         # Update the actor network parameters
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
@@ -90,16 +100,8 @@ class A2CAgent(Agent):
         critic_loss.backward()
         self.critic_optimizer.step()
 
-    # def train(self, done):
-    #     if not done or self.batch_num != self.batch_update:
-    #         return
-    #     states = torch.tensor(self.state_batch, dtype=torch.float32).to(self.device)
-    #     actions = torch.tensor(self.action_batch, dtype=torch.int64).to(self.device)
-    #     state_action_values = Variable(self.critic_network(states).gather(1, actions.view(-1,1)), requires_grad=True)
-    #     self.actor_train(states, actions, state_action_values)
-    #     self.critic_train(states, actions, state_action_values)
-
-    def observe(self, state, action, next_state, reward):
+    def observe(self, state, action, next_state, reward, done):
+        self.steps += 1
         if not isinstance(next_state, np.ndarray):
             reward = -1
         # Store rewards
@@ -134,3 +136,9 @@ class A2CAgent(Agent):
         self.reward_list.clear()
         self.next_state_list.clear()
         self.batch_num += 1
+    
+    def get_loss(self):
+        loss_np = np.array(self.loss_list, dtype=np.float32)
+        if loss_np.size == 0:
+            return 0
+        return np.mean(loss_np)

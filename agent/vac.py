@@ -12,7 +12,9 @@ class VACAgent(Agent):
 
     """Vanilla Actor Critic Agent Implementation"""
 
-    def __init__(self, device, obs_dim, act_dim, gamma, actor_lr, critic_lr, batch_update) -> None:
+    def __init__(self, device, obs_dim, act_dim,
+                 gamma, actor_lr, critic_lr,
+                 batch_update, action_space, writer) -> None:
         super().__init__()
 
         self.device = device
@@ -27,8 +29,12 @@ class VACAgent(Agent):
         self.action_batch = []
         self.returns = []
         self.next_state_batch = []
+        self.loss_list = []
         self.batch_num = 0
         self.batch_update = batch_update
+        self.action_space = action_space
+        self.writer = writer
+        self.steps = 0
 
         self.obs_dim = obs_dim
         self.act_dim = act_dim
@@ -60,6 +66,8 @@ class VACAgent(Agent):
 
         log_probs_action = torch.flatten(torch.gather(log_probs, 1, actions.unsqueeze(1)))
         actor_loss = - torch.mean(log_probs_action * state_action_values)
+        self.loss_list.append(actor_loss.item())
+        self.writer.add_scalar("Loss/Actor", actor_loss.item(), global_step=self.steps)
 
         # Update the actor network parameters
         self.actor_optimizer.zero_grad()
@@ -80,6 +88,8 @@ class VACAgent(Agent):
         expected_state_action_values = expected_state_action_values.detach()
 
         critic_loss = F.mse_loss(state_action_values.squeeze(1), expected_state_action_values)
+        self.loss_list[-1] += critic_loss.item()
+        self.writer.add_scalar("Loss/Critic", critic_loss.item(), global_step=self.steps)
 
         # Update the critic network parameters
         self.critic_optimizer.zero_grad()
@@ -87,6 +97,7 @@ class VACAgent(Agent):
         self.critic_optimizer.step()
 
     def train(self, done):
+        self.average_loss = 0
         if not done or self.batch_num != self.batch_update:
             return
         states = torch.tensor(self.state_batch, dtype=torch.float32).to(self.device)
@@ -95,7 +106,8 @@ class VACAgent(Agent):
         self.actor_train(states, actions, state_action_values)
         self.critic_train(states, actions, state_action_values)
 
-    def observe(self, state, action, next_state, reward):
+    def observe(self, state, action, next_state, reward, done):
+        self.steps = 0
         if not isinstance(next_state, np.ndarray):
             reward = -1
         # Store rewards
@@ -110,13 +122,13 @@ class VACAgent(Agent):
         return action
 
     def update(self, done):
-        if not done or self.batch_num != self.batch_update:
-            return
-        self.state_batch.clear()
-        self.action_batch.clear()
-        self.returns.clear()
-        self.next_state_batch.clear()
-        self.batch_num = 0
+        if done and self.batch_num == self.batch_update:
+            self.state_batch.clear()
+            self.action_batch.clear()
+            self.returns.clear()
+            self.next_state_batch.clear()
+            self.batch_num = 0
+        return
     
     def update_batch(self, done):
         if not done:
@@ -130,3 +142,9 @@ class VACAgent(Agent):
         self.reward_list.clear()
         self.next_state_list.clear()
         self.batch_num += 1
+    
+    def get_loss(self):
+        loss_np = np.array(self.loss_list, dtype=np.float32)
+        if loss_np.size == 0:
+            return 0
+        return np.mean(loss_np)

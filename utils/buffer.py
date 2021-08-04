@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import random
 
-Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
+Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward', 'done'))
 
 class ReplayBuffer(object):
     def __init__(self, min_capacity, max_capacity) -> None:
