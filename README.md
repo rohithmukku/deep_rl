@@ -15,7 +15,7 @@ This repository contains implementations of some of the popular DRL methods.
 - [ ] Asynchronous Advantage Actor Critic (A3C)
 - [ ] Soft Actor Critic (SAC)
 
-  > **NOTE:** PPO, DDPG aren't working properly, need to be improved.
+  > **NOTE:** These methods are not optimized. Only PPO, DDOG Work on continuous action space.
 
 ## Environments
 
@@ -115,6 +115,6 @@ Use --hydra-help to view Hydra specific help
 
 ## Todo
 
-- Improve PPO, DDPG
+- Implement SAC
 - Unit testing
 - Better logs, plots

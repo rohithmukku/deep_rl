@@ -124,52 +124,101 @@ class PPOCritic(nn.Module):
             v = self.v(obs)
         return v.cpu().numpy()
 
-
 class DDPGActor(nn.Module):
-    def __init__(self, in_dim, hidden_dim, out_dim, act_limit):
+
+    def __init__(self, in_dim, hidden_dim, act_dim, act_limit):
         super().__init__()
-
-        self.base = nn.Sequential(
+        self.pi = nn.Sequential(
             nn.Linear(in_dim, hidden_dim),
-            nn.ReLU()
-        )
-
-        self.mu = nn.Sequential(
-            nn.Linear(hidden_dim, out_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, act_dim),
             nn.Tanh()
         )
-
         self.act_limit = act_limit
 
-    def forward(self, x):
-        base = self.base(x)
-        mu = self.mu(base)
-
-        return self.act_limit * mu
+    def forward(self, obs):
+        return self.act_limit * self.pi(obs)
 
 class DDPGCritic(nn.Module):
-    def __init__(self, in_dim, hidden_dim, out_dim):
+
+    def __init__(self, obs_dim, hidden_dim, act_dim):
+        super().__init__()
+        self.q = nn.Sequential(
+            nn.Linear(obs_dim + act_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 1),
+            nn.Identity()
+        )
+
+    def forward(self, obs, act):
+        q = self.q(torch.cat([obs, act], dim=-1))
+        return torch.squeeze(q, -1)
+
+class DDPGActorCritic(nn.Module):
+
+    def __init__(self, obs_dim, hidden_dim, action_space):
         super().__init__()
 
-        self.state_value = nn.Sequential(
-            nn.Linear(in_dim, hidden_dim),
-            nn.ReLU()
-        )
+        act_dim = action_space.shape[0]
+        act_limit = action_space.high[0]
 
-        self.action_value = nn.Sequential(
-            nn.Linear(out_dim, hidden_dim),
-            nn.ReLU()
-        )
+        # build policy and value functions
+        self.pi = DDPGActor(obs_dim, hidden_dim, act_dim, act_limit)
+        self.q = DDPGCritic(obs_dim, hidden_dim, act_dim)
 
-        self.state_action_value = nn.Sequential(
-            nn.Linear(hidden_dim, 1)
-        )
+    def act(self, obs):
+        with torch.no_grad():
+            return self.pi(obs).cpu().numpy()
+
+# class DDPGActor(nn.Module):
+#     def __init__(self, in_dim, hidden_dim, out_dim, act_limit):
+#         super().__init__()
+
+#         self.base = nn.Sequential(
+#             nn.Linear(in_dim, hidden_dim),
+#             nn.ReLU()
+#         )
+
+#         self.mu = nn.Sequential(
+#             nn.Linear(hidden_dim, out_dim),
+#             nn.Tanh()
+#         )
+
+#         self.act_limit = act_limit
+
+#     def forward(self, x):
+#         base = self.base(x)
+#         mu = self.mu(base)
+
+#         return self.act_limit * mu
+
+# class DDPGCritic(nn.Module):
+#     def __init__(self, in_dim, hidden_dim, out_dim):
+#         super().__init__()
+
+#         self.state_value = nn.Sequential(
+#             nn.Linear(in_dim, hidden_dim),
+#             nn.ReLU()
+#         )
+
+#         self.action_value = nn.Sequential(
+#             nn.Linear(out_dim, hidden_dim),
+#             nn.ReLU()
+#         )
+
+#         self.state_action_value = nn.Sequential(
+#             nn.Linear(hidden_dim, 1)
+#         )
     
-    def forward(self, state, action):
-        state_value = self.state_value(state)
-        action_value = self.action_value(action)
+#     def forward(self, state, action):
+#         state_value = self.state_value(state)
+#         action_value = self.action_value(action)
 
-        x = state_value + action_value
-        state_action_value = self.state_action_value(x)
+#         x = state_value + action_value
+#         state_action_value = self.state_action_value(x)
 
-        return state_action_value
+#         return state_action_value
