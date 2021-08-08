@@ -44,12 +44,9 @@ class Environment(object):
         for episode in tqdm(range(self.num_episodes)):
             state = self.env.reset()
             total_rewards = 0
-            loss = 0
             for t in count():
                 steps += 1
                 action = self.agent.act(state)
-                if not isinstance(action, np.ndarray):
-                    action = self.env.action_space.sample()
                 next_state, reward, done, info = self.env.step(action)
                 self.agent.observe(state, action, next_state, reward, int(done))
                 self.agent.update_batch(done)

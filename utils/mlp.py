@@ -1,8 +1,8 @@
 import torch
+import numpy as np
 from gym.spaces import Box, Discrete
 from torch import nn
 from torch.distributions import Categorical, Normal, MultivariateNormal
-
 
 class Network(nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim):
@@ -20,75 +20,110 @@ class Network(nn.Module):
     def forward(self, x):
         return self.network(x)
 
-class CategoricalNetwork(nn.Module):
-    def __init__(self, in_dim, hidden_dim, out_dim):
-        super().__init__()
+class Actor(nn.Module):
 
-        self.network = nn.Sequential(
-            nn.Linear(in_dim, hidden_dim),
-            nn.ReLU(),
+    def _distribution(self, obs):
+        raise NotImplementedError
+
+    def _log_prob_from_distribution(self, pi, act):
+        raise NotImplementedError
+
+    def forward(self, obs, act=None):
+        pi = self._distribution(obs)
+        logp_a = None
+        if act is not None:
+            logp_a = self._log_prob_from_distribution(pi, act)
+        return pi, logp_a
+
+class MLPCategoricalActor(Actor):
+    
+    def __init__(self, obs_dim, act_dim, hidden_dim):
+        super().__init__()
+        self.logits_net = nn.Sequential(
+            nn.Linear(obs_dim, hidden_dim),
+            nn.Tanh(),
             nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, out_dim),
+            nn.Tanh(),
+            nn.Linear(hidden_dim, act_dim),
             nn.Identity()
         )
-    
-    def forward(self, x):
-        logits = self.network(x)
-        dist = Categorical(logits=logits)
-        return dist
 
-class GaussianNetwork(nn.Module):
-    def __init__(self, in_dim, hidden_dim, out_dim):
+    def _distribution(self, obs):
+        logits = self.logits_net(obs)
+        return Categorical(logits=logits)
+
+    def _log_prob_from_distribution(self, pi, act):
+        return pi.log_prob(act)
+
+class MLPGaussianActor(Actor):
+
+    def __init__(self, obs_dim, act_dim, hidden_dim):
         super().__init__()
-
-        self.cov_var = torch.full(size=(out_dim, ), fill_value=0.5)
-        self.cov_mat = torch.nn.Parameter(torch.diag(self.cov_var))
-        # log_std = -0.5 * torch.ones(out_dim, dtype=torch.float32)
-        # self.log_std = torch.nn.Parameter(torch.as_tensor(log_std))
-        self.mu_network = nn.Sequential(
-            nn.Linear(in_dim, hidden_dim),
-            nn.ReLU(),
+        log_std = -0.5 * np.ones(act_dim, dtype=np.float32)
+        self.log_std = torch.nn.Parameter(torch.as_tensor(log_std))
+        self.mu_net = nn.Sequential(
+            nn.Linear(obs_dim, hidden_dim),
+            nn.Tanh(),
             nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, out_dim),
+            nn.Tanh(),
+            nn.Linear(hidden_dim, act_dim),
             nn.Identity()
         )
-    
-    def forward(self, x):
-        mu = self.mu_network(x)
-        # std = torch.exp(self.log_std)
-        cov_mat = self.cov_mat.unsqueeze(0).repeat(mu.shape[0], 1, 1)
-        dist = MultivariateNormal(mu, self.cov_mat)
-        return dist
 
-class PPOActor(nn.Module):
-    def __init__(self, in_dim, hidden_dim, action_space):
+    def _distribution(self, obs):
+        mu = self.mu_net(obs)
+        std = torch.exp(self.log_std)
+        return Normal(mu, std)
+
+    def _log_prob_from_distribution(self, pi, act):
+        return pi.log_prob(act).sum(axis=-1)
+
+class MLPCritic(nn.Module):
+
+    def __init__(self, obs_dim, hidden_dim):
         super().__init__()
-
-        if isinstance(action_space, Box):
-            self.network = GaussianNetwork(in_dim, hidden_dim, action_space.shape[0])
-        else:
-            self.network = CategoricalNetwork(in_dim, hidden_dim, action_space.n)
-
-    def forward(self, x):
-        return self.network(x)
-
-class PPOCritic(nn.Module):
-    def __init__(self, in_dim, hidden_dim):
-        super().__init__()
-
-        self.network = nn.Sequential(
-            nn.Linear(in_dim, hidden_dim),
+        self.v_net = nn.Sequential(
+            nn.Linear(obs_dim, hidden_dim),
             nn.Tanh(),
             nn.Linear(hidden_dim, hidden_dim),
             nn.Tanh(),
             nn.Linear(hidden_dim, 1),
             nn.Identity()
         )
+
+    def forward(self, obs):
+        return torch.squeeze(self.v_net(obs), -1)
+
+class PPOActor(nn.Module):
+    def __init__(self, in_dim, hidden_dim, action_space):
+        super().__init__()
+
+        if isinstance(action_space, Box):
+            self.pi = MLPGaussianActor(in_dim, action_space.shape[0], hidden_dim)
+        elif isinstance(action_space, Discrete):
+            self.pi = MLPCategoricalActor(in_dim, action_space.n, hidden_dim)
+
+    def step(self, obs):
+        with torch.no_grad():
+            pi = self.pi._distribution(obs)
+            a = pi.sample()
+            logp_a = self.pi._log_prob_from_distribution(pi, a)
+        return a.cpu().numpy(), logp_a.cpu().numpy()
+
+    def act(self, obs):
+        return self.step(obs)[0]
+
+class PPOCritic(nn.Module):
+    def __init__(self, in_dim, hidden_dim):
+        super().__init__()
+
+        self.v = MLPCritic(in_dim, hidden_dim)
     
-    def forward(self, x):
-        return self.network(x)
+    def step(self, obs):
+        with torch.no_grad():
+            v = self.v(obs)
+        return v.cpu().numpy()
+
 
 class DDPGActor(nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim, act_limit):

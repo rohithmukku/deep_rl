@@ -2,10 +2,10 @@ _target_: agent.ppo.PPOAgent
 obs_dim: ???
 act_dim: ???
 gamma: 0.99
-lam: 0.95
+lam: 0.97
 actor_lr: 0.0003
 critic_lr: 0.001
-batch_update: 4
+steps_per_epoch: 4000
 batch_size: 32
 epsilon_clip: 0.2
 k_epochs: 80
